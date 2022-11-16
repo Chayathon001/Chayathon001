@@ -9,4 +9,4 @@
 
 ## Get in touch
 :point_right:(https://www.facebook.com/ChayathonPor)<br>
-point_right:(https://www.instagram.com/por__c)<br>
+:point_right:(https://www.instagram.com/por__c)<br>
