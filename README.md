@@ -1,8 +1,8 @@
-# สวัดดีเรา ปอ นักศึกษาวิศวกรรมคอมพิวเตอร์ 👋
+#:walking: Hi Computer engineering :floppy_disk::floppy_disk::floppy_disk:
 
-:blush: นาย ชยธร เอียดราช <br>
-🌱 ชื่อเล่น ปอ <br>
-👯 อายุ 22 ปี <br>
-😄 เบอร์: 062-3080540 <br>
-📫 กำลังศึกษา มหาวิทยาลัยราชมงคลล้านนา เชียงใหม่ <br>
-😄 Email: Chayathon_01@hotmail.com <br>
+:blush:Mr.Chayathon Aiadrat <br>
+:smiley:Nickname: Por <br>
+:smirk:age: 22 year <br>
+:iphone:Telephone number: 062-3080540 <br>
+:european_castle:Studying: Rajamangala University of Technology Lanna <br>
+:mailbox_with_no_mail:Email: Chayathon_01@hotmail.com <br>
