@@ -1,4 +1,4 @@
-# :walking: Hi Computer engineering :floppy_disk::floppy_disk::floppy_disk:
+# :walking: Hi Computer engineering 
 
 :blush:Mr.Chayathon Aiadrat <br>
 :smiley:Nickname: Por <br>
