@@ -1,0 +1,453 @@
+{
+  "cells": [
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "view-in-github",
+        "colab_type": "text"
+      },
+      "source": [
+        "<a href=\"https://colab.research.google.com/github/Chayathon001/Chayathon001/blob/main/%E0%B9%83%E0%B8%9A%E0%B8%87%E0%B8%B2%E0%B8%993_kNN.HTML\" target=\"_parent\"><img src=\"https://colab.research.google.com/assets/colab-badge.svg\" alt=\"Open In Colab\"/></a>"
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "source": [
+        "**Lab - KNN from scratch**\n",
+        "\n",
+        "**จัดทำโดย**\n",
+        "  \n",
+        "\n",
+        "*   นายชยธร เอียดราช\n",
+        "\n",
+        "\n",
+        "\n"
+      ],
+      "metadata": {
+        "id": "JdRE_TFfLiKN"
+      }
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "pGo2m9UHuQXO"
+      },
+      "source": [
+        "# k-Nearest Neighbor (kNN) exercise\n",
+        "\n",
+        "**kNN classifier ประกอบไปด้วย 2 ขั้นตอนหลัก คือ:**\n",
+        "\n",
+        "- **ในขั้นการ train**\n",
+        "  จะทำเพียงเก็บ (จำ) ข้อมูล training set ทั้งหมดไว้ในตัวแปร\n",
+        "  \n",
+        "  \n",
+        "- **ในขั้นการ predict** อัลกอริทึม kNN ทำนายค่า label ของแต่ละ test image ตาม majority vote ของเพื่อนบ้าน โดยมี 3 ขั้นตอนย่อยดังนี้\n",
+        "  1. คำนวณหาระยะห่าง (L2 distance) ระหว่าง test image และ train image ทุกคู่ภาพ\n",
+        "  2. สำหรับแต่ละ test image เราจะหาภาพ train image ที่มีค่า distance น้อยที่สุด k ภาพ (distance น้อย = ที่มีลักษณะใกล้เคียงที่สุด)\n",
+        "  3. ตอบ label ตาม majority vote ของ k ภาพดังกล่าว"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": null,
+      "metadata": {
+        "id": "mUHOQysluQXQ"
+      },
+      "outputs": [],
+      "source": [
+        "# โค้ด setup ต่างๆ\n",
+        "import random\n",
+        "import numpy as np\n",
+        "import matplotlib.pyplot as plt\n",
+        "\n",
+        "%matplotlib inline\n",
+        "plt.rcParams['figure.figsize'] = (5.0, 4.0) # set default size of plots\n",
+        "plt.rcParams['image.interpolation'] = 'nearest'\n",
+        "plt.rcParams['image.cmap'] = 'gray_r'\n",
+        "\n",
+        "%reload_ext autoreload\n",
+        "%autoreload 2"
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "qeqneT9IuQXR"
+      },
+      "source": [
+        "### จง implement ฟังก์ชันสำหรับ kNN ต่อไปนี้\n",
+        "\n",
+        "1. **train(X, y)** มีหน้าที่จำข้อมูล training set เก็บไว้ในตัวแปร\n",
+        "2. **predict(X, k)** มีหน้าที่ทำนาย label ของข้อมูลชุด test โดยใช้เพื่อนบ้านที่ใกล้ที่สุด k ตัว\n",
+        "3. **compute_distances(X)** มีหน้าที่คำนวณระยะห่างระหว่างทุกคู่ภาพ train และ test images โดยเราจะเก็บค่าระยะห่างทั้งหมดไว้ใน distance matrix เช่น สมมติว่าเรามี **1000** training images และมี **200** test images เราจะได้ distance matrix ที่มีขนาด **200 x 1000** โดยที่แต่ละค่าใน matrix ณ ตำแหน่ง (i,j) จะเก็บค่าระยะห่างระหว่าง i-th test และ j-th train image\n",
+        "\n",
+        "**หมายเหตุ**\n",
+        "- การคำนวณ L2 distance เป็นตามสมการ $ d_2(I_1,I_2) = \\lVert I_1 - I_2 \\rVert_2 = \\sqrt{\\sum_p{(I_1^p - I_2^p)^2}} $"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": null,
+      "metadata": {
+        "id": "Y62QDjkCuQXR"
+      },
+      "outputs": [],
+      "source": [
+        "X_train = []\n",
+        "y_train = []\n",
+        "\n",
+        "def train(X, y):\n",
+        "    \"\"\"\n",
+        "    จำข้อมูลชุด train ทั้งหมด เก็บไว้ในตัวแปร X_train, y_train\n",
+        "    \"\"\"\n",
+        "    X_train = X\n",
+        "    y_train = y\n",
+        "\n",
+        "\n",
+        "def predict(X, k=1):\n",
+        "    \"\"\"\n",
+        "    ทำนาย label ของข้อมูลชุด test\n",
+        "\n",
+        "    Inputs:\n",
+        "    - X: ข้อมูลชุด test\n",
+        "    - k: ค่า hyperparameter k ของอัลกอริทึม k-NN\n",
+        "\n",
+        "    Returns:\n",
+        "    - y: numpy array ของ label ที่ทำนาย โดยให้ y[i] เก็บค่า label ของภาพที่ i\n",
+        "    \"\"\"\n",
+        "\n",
+        "    dists = compute_distances(X)\n",
+        "    num_test = X.shape[0]\n",
+        "    y_pred = np.zeros(num_test)\n",
+        "\n",
+        "    for i in range(num_test):\n",
+        "        # อาเรย์ขนาด k ซึ่งจะเก็บ k nearest neighbors ของข้อมูลชุด test ตัวที่ i\n",
+        "        closest_y = []\n",
+        "\n",
+        "        # TODO: ใช้ distance matrix ในการหา k nearest neighbors\n",
+        "        # และใช้ y_train ในการหาค่า label เพื่อนบ้าน k ตัวดังกล่าว\n",
+        "        # เก็บคำตอบไว้ใน closest_y\n",
+        "        # hint: สามารถใช้ฟังก์ชัน numpy.argsort เพื่อหา index ของ distance ที่น้อยที่สุด k ค่า\n",
+        "\n",
+        "\n",
+        "\n",
+        "        # TODO: หา majority vote ของเพื่อนบ้าน k ตัวแล้วเก็บผลลัพธ์ใน y_pred\n",
+        "        # หากเกิดการเสมอกัน ให้เลือก label ที่มีค่าที่น้อยกว่า\n",
+        "        # hint: ในการนับ vote สามารถใช้ฟังก์ชัน numpy.argmax ร่วมกับ numpy.bincount ได้ หรือไม่ก็เขียนด้วย for-loop\n",
+        "\n",
+        "\n",
+        "    return y_pred\n",
+        "\n",
+        "def compute_distances(X):\n",
+        "    \"\"\"\n",
+        "    คำนวณระยะห่างระหว่างข้อมูลชุดทดสอบทุกตัว กับข้อมูลชุดฝึกทุกตัว\n",
+        "\n",
+        "    Inputs:\n",
+        "    - X: ข้อมูลชุดทดสอบ\n",
+        "\n",
+        "    Returns:\n",
+        "    - dists: distance matrix ขนาด (num_test, num_train) ซึ่ง dists[i, j]\n",
+        "    จะเก็บค่าระยะห่างแบบ L2 ระหว่าง test image ภาพที่ i กับ training image ภาพที่ j\n",
+        "    \"\"\"\n",
+        "    num_test = X.shape[0]\n",
+        "    num_train = X_train.shape[0]\n",
+        "    dists = np.zeros((num_test, num_train))\n",
+        "    for i in range(num_test):\n",
+        "        for j in range(num_train):\n",
+        "            # TODO: คำนวณหา dists[i,j] โดยพยายามไม่ใช้ loop ซ้อนอีก\n",
+        "            # hint: มีคำสั่ง np.sqrt(), np.sum(), np.square(), np.linalg.norm() ที่ช่วยคำนวณได้\n",
+        "\n",
+        "\n",
+        "            pass\n",
+        "\n",
+        "    return dists\n"
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "k2fzVk8MuQXR"
+      },
+      "source": [
+        "### จงนำฟังก์ชัน train, predict ที่ implement เรียบร้อยแล้วไปใช้จำแนกภาพกับข้อมูล MNIST และ CIFAR-10\n",
+        "\n",
+        "#### 1. เริ่มจากทำการโหลดข้อมูลภาพและ label แบ่งออกเป็นชุด train/test"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": null,
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/",
+          "height": 416
+        },
+        "id": "E3rgoVY4uQXR",
+        "outputId": "3c8c525c-40d6-473e-f3db-9681b2d1341f"
+      },
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "Training data shape:  (1500, 64)\n",
+            "Training labels shape:  (1500,)\n",
+            "Test data shape:  (297, 64)\n",
+            "Test labels shape:  (297,)\n"
+          ]
+        },
+        {
+          "output_type": "display_data",
+          "data": {
+            "text/plain": [
+              "<Figure size 500x400 with 50 Axes>"
+            ],
+            "image/png": "iVBORw0KGgoAAAANSUhEUgAAAZcAAAFKCAYAAADRxhL8AAAAOXRFWHRTb2Z0d2FyZQBNYXRwbG90bGliIHZlcnNpb24zLjcuMSwgaHR0cHM6Ly9tYXRwbG90bGliLm9yZy/bCgiHAAAACXBIWXMAAA9hAAAPYQGoP6dpAAAm0ElEQVR4nO3de4xV1fn/8WeQiyBlAKmKilyKYootYKtWow5YVLTKxRbv7Qxqik2US2xjrGkGaPGS2gDVeCFpYWLVWjWA2mgrCYPGCqXKYL20UGQmiIilMiOKyG39/vAHYX/OcvaZM88+m/h9vxL/WIc5Z6+z1t7n8TzPWWtXhBCCAQDgqEPeHQAAfPkQXAAA7gguAAB3BBcAgDuCCwDAHcEFAOCO4AIAcEdwAQC4I7gAANwRXAAA7jINLp999pndeuutduyxx1rXrl3tjDPOsBdeeCHLQxbt448/ttraWhszZoz17t3bKioqbOHChXl3y8zMVq1aZTfddJMNHTrUjjjiCDvhhBPs8ssvt7Vr1+bdNTMze/PNN23ixIk2aNAg69atm/Xp08fOPfdce+aZZ/LuWtTs2bOtoqLCTjnllFz7UV9fbxUVFdH/VqxYkWvfDvbaa6/Z2LFjrXfv3tatWzc75ZRT7Le//W2ufaqpqfnCsauoqLBNmzbl2j8zs3Xr1tmVV15pxx9/vHXr1s1OPvlkmzVrlu3YsSPvrtmrr75qY8aMsR49ethXvvIVu+CCC6yhoSHTY3bM8sVramrsySeftGnTptmJJ55oCxcutIsvvtiWLVtmZ599dpaHTrV161abNWuWnXDCCTZs2DCrr6/PtT8Hu/vuu+3ll1+2iRMn2je/+U17//337b777rNTTz3VVqxYkfuHZFNTk23fvt2qq6vt2GOPtR07dthTTz1lY8eOtYceesh+/OMf59q/g7377rt2xx132BFHHJF3Vw6YMmWKnXbaaYnHBg8enFNvkv7617/apZdeaiNGjLBf/OIX1r17d1u/fr29++67ufZr8uTJNnr06MRjIQS78cYbbcCAAXbcccfl1LPPbdy40U4//XSrrKy0m266yXr37m2vvPKK1dbW2quvvmpLlizJrW+vvfaanX322davXz+rra21ffv22f33329VVVX297//3YYMGZLNgUNGVq5cGcws/PrXvz7w2Keffhq+9rWvhTPPPDOrwxZt586dYfPmzSGEEFatWhXMLCxYsCDfTv1/L7/8cvjss88Sj61duzZ06dIlXHPNNTn1qnV79uwJw4YNC0OGDMm7KwlXXHFFOO+880JVVVUYOnRorn1ZtmxZMLPwxBNP5NqPL9LS0hKOPvroMGHChLB37968u5PqpZdeCmYWZs+enXdXwuzZs4OZhTfeeCPx+I9+9KNgZuHDDz/MqWchXHzxxaFXr15h69atBx577733Qvfu3cNll12W2XEzS4s9+eSTdthhhyX+L/bwww+366+/3l555RXbuHFjVocuSpcuXeyYY47JtQ9f5KyzzrLOnTsnHjvxxBNt6NCh9vbbb+fUq9Yddthh1q9fP2tubs67Kwe8+OKL9uSTT9rcuXPz7kqB7du32549e/LuRsKjjz5qW7ZssdmzZ1uHDh3sk08+sX379uXdrS/06KOPWkVFhV199dV5d8U++ugjMzM7+uijE4/37dvXOnToUHA9l9NLL71ko0ePtiOPPDLRr6qqKnv22Wft448/zuS4mQWX1atX20knnWQ9evRIPH766aebmWWe7/uyCSHYli1brE+fPnl35YBPPvnEtm7dauvXr7c5c+bYc889Z9/97nfz7paZme3du9duvvlmu+GGG+wb3/hG3t1JmDRpkvXo0cMOP/xwGzVqlP3jH//Iu0tmZrZ06VLr0aOHbdq0yYYMGWLdu3e3Hj162E9+8hPbuXNn3t1L2L17t/3pT3+ys846ywYMGJB3d2zkyJFmZnb99ddbQ0ODbdy40R5//HF74IEHbMqUKbmmZT/77DPr2rVrwePdunWzXbt22RtvvJHJcTOruWzevNn69u1b8Pj+x957772sDv2l9Mgjj9imTZts1qxZeXflgFtuucUeeughMzPr0KGDXXbZZXbffffl3KvPPfjgg9bU1GRLly7NuysHdO7c2b7//e/bxRdfbH369LG33nrL7rnnHjvnnHPsb3/7m40YMSLX/q1bt8727Nlj48aNs+uvv97uvPNOq6+vt3vvvdeam5vtsccey7V/B/vLX/5i//vf/+yaa67JuytmZjZmzBj75S9/aXfccYc9/fTTBx6//fbb7Ve/+lWOPTMbMmSIrVixwvbu3WuHHXaYmZnt2rXLVq5caWaW3Y8hssq3DRo0KFx00UUFj69fvz6YWZgzZ05Wh26zQ63mot5+++3Qo0ePcOaZZ4Y9e/bk3Z0D3n777fDCCy+Eurq68L3vfS9MmDAhvP/++3l3K2zdujX07t073HPPPQceOxRqLjHr1q0LXbt2DRdeeGHeXQmDBg0KZhZuvPHGxOOTJ08OZhbWrl2bU88KXXXVVaFTp06JOkLeHn744XDhhReG+fPnh6eeeipcd911oaKiItx777259uuBBx4IZhaqq6vDm2++Gf75z3+GK664InTq1CmYWXj44YczOW5mwWXo0KHhvPPOK3j8zTffDGYWHnzwwawO3WaHcnDZvHlzGDRoUOjXr1/YtGlT3t1p1fnnnx9OO+20sG/fvlz7ceONN4bBgwcnfhRxqAaXEEK48sorQ+fOnXP/H4ehQ4cGMwvLly9PPL58+fJgZqGuri6nniVt3749dOvWLVxyySV5d+WAxx57LHTt2jVs3Lgx8XhNTU3o1q1b7kHw5z//+YFgYmbh29/+drj99tuDmYVFixZlcszMai59+/a1zZs3Fzy+/7Fjjz02q0N/abS0tNhFF11kzc3N9vzzzx/yY/aDH/zAVq1alet6nHXr1tn8+fNtypQp9t5771ljY6M1Njbazp07bffu3dbY2Ggffvhhbv2L6devn+3atcs++eSTXPux//zSovRRRx1lZmbbtm0re59iFi9ebDt27DhkUmJmZvfff7+NGDHCjj/++MTjY8eOtR07dtjq1atz6tnnZs+ebVu2bLGXXnrJXn/9dVu1atWBH2ucdNJJmRwzs+AyfPhwW7t27YFfUey3P883fPjwrA79pbBz50679NJLbe3atfbss8/a17/+9by7lOrTTz81s8+DYl42bdpk+/btsylTptjAgQMP/Ldy5Upbu3atDRw48JCqW5mZvfPOO3b44Ydb9+7dc+3Ht771LTMrzMHvr49+9atfLXufYh555BHr3r27jR07Nu+uHLBlyxbbu3dvweO7d+82MzskfhnYq1cvO/vssw/8wGXp0qV2/PHH28knn5zNATP5PhRCWLFiRcE6l507d4bBgweHM844I6vDluRQS4vt2bMnjB07NnTs2DH8+c9/zrs7BbZs2VLw2K5du8Kpp54aunbtGrZv355Drz733//+NyxatKjgv6FDh4YTTjghLFq0KLz++uu59O2DDz4oeKyhoSF06tQpjB07NoceJb322mvBzMLVV1+dePyqq64KHTt2PCTSsh988EHo2LFj+OEPf5h3VxIuueSS0Llz5/Dvf/878fj48eNDhw4dDomxO9gf//jHYGaJuqS3zH4tdsYZZ9jEiRPttttusw8++MAGDx5sdXV11tjYaL/73e+yOmyb3Hfffdbc3Hzg/8yeeeaZAyuRb775ZqusrMylX7fccos9/fTTdumll9qHH35of/jDHxL/fu211+bSr/0mT55sH330kZ177rl23HHH2fvvv2+PPPKI/etf/7Lf/OY3uf4feJ8+fWz8+PEFj+9f6xL7t3K54oorrGvXrnbWWWfZUUcdZW+99ZbNnz/funXrZnfddVdu/dpvxIgRdt1119nvf/9727Nnj1VVVVl9fb098cQTdttttx0SadnHH3/c9uzZc0ilxMzMfvazn9lzzz1n55xzjt1000125JFH2rPPPmvPPfec3XDDDbmO3YsvvmizZs2yCy64wI488khbsWKFLViwwMaMGWNTp07N7sCZha3w+Yr8n/70p+GYY44JXbp0Caeddlp4/vnnszxkm/Tv3/9AgUv/27BhQ279qqqq+sJ+ZTxlRXnsscfC6NGjw9FHHx06duwYevXqFUaPHh2WLFmSd9e+0KFQ0J83b144/fTTQ+/evUPHjh1D3759w7XXXhvWrVuXa78OtmvXrjBjxozQv3//0KlTpzB48OBD6ped3/nOd8JRRx2V+48fYlauXBkuuuiicMwxx4ROnTqFk046KcyePTvs3r0713795z//CRdccEHo06dP6NKlSzj55JPDnXfeWbALiLeKEELILnQBAP4vYst9AIA7ggsAwB3BBQDgjuACAHBHcAEAuCO4AADcEVwAAO7cVugvXrw40Z4xY0bqc/Rvslo9vXDhwkR70qRJifayZcsKnrP/5j/lUF9fn2jX1NQk2k1NTQXP0T5n1V+9i6O2Y30bN25coq3nhqfGxsZEW/esi+1hp+OdFT2fi7mPejnH7mB6zsWOq+OW5f6AaddsjK42z+oOpPq6+jkW21uvtra21ed4mjZtWqKtYxm7uZr+jcfc8s0FAOCO4AIAcEdwAQC4c6u5TJgwodV/r66uLnhM87xZ5XRjOcaDxfLLWdZcGhoaEu1Ro0a1+TW01uBFX3f69OmJttYEYnOktQV9zbT5aAvNf2u+W/PPMVn1r2fPnq3++5w5cwoeK9euzTpudXV1ibbOs1l578GkNQmtp+g1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\n"
+          },
+          "metadata": {}
+        }
+      ],
+      "source": [
+        "# โหลด MNIST dataset จาก sklearn.dataset เก็บไว้ในตัวแปร digits\n",
+        "from sklearn import datasets\n",
+        "digits = datasets.load_digits()\n",
+        "\n",
+        "# TODO: ตัดแบ่ง images และ target ออกเป็นส่วนชุด train และชุด test\n",
+        "# ให้ชุด train มีขนาด 1500 ภาพ\n",
+        "# ให้ชุด test มีขนาด 297 ภาพ\n",
+        "X_train = digits.data[:1500]\n",
+        "y_train = digits.target[:1500]\n",
+        "X_test = digits.data[1500:]\n",
+        "y_test = digits.target[1500:]\n",
+        "\n",
+        "# ตรวจสอบความถูกต้องของขนาดข้อมูล\n",
+        "print('Training data shape: ', X_train.shape)\n",
+        "print('Training labels shape: ', y_train.shape)\n",
+        "print('Test data shape: ', X_test.shape)\n",
+        "print('Test labels shape: ', y_test.shape)\n",
+        "\n",
+        "# visualize ตัวอย่างภาพจากแต่ละ class โดยสุ่ม class ละ 5 ภาพ\n",
+        "classes = [0,1,2,3,4,5,6,7,8,9]\n",
+        "num_classes = len(classes)\n",
+        "samples_per_class = 5\n",
+        "for y, cls in enumerate(classes):\n",
+        "    idxs = np.flatnonzero(y_train == y)\n",
+        "    idxs = np.random.choice(idxs, samples_per_class, replace=False)\n",
+        "    for i, idx in enumerate(idxs):\n",
+        "        plt_idx = i * num_classes + y + 1\n",
+        "        plt.subplot(samples_per_class, num_classes, plt_idx)\n",
+        "        plt.imshow(X_train[idx].reshape(8, 8).astype('uint8'))\n",
+        "        plt.axis('off')\n",
+        "        if i == 0:\n",
+        "            plt.title(cls)\n",
+        "plt.show()"
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "4tGOSNpGuQXR"
+      },
+      "source": [
+        "#### 2. ก่อนนำภาพไปใช้ train/test จะต้อง flatten ภาพจากขนาด 8 x 8 ให้กลายเป็นเวกเตอร์ขนาด 64"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": null,
+      "metadata": {
+        "id": "ZMjVZmSBuQXS"
+      },
+      "outputs": [],
+      "source": [
+        "X_train = X_train.reshape(-1, 64)\n",
+        "X_test = X_test.reshape(-1, 64)"
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "oDiFSH-ruQXS"
+      },
+      "source": [
+        "#### 3. เรียกใช้ฟังก์ชัน train และ predict"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": null,
+      "metadata": {
+        "id": "p0hkpbsXuQXS"
+      },
+      "outputs": [],
+      "source": [
+        "# TODO: ทดลองเปลี่ยนค่า k\n",
+        "train(X_train, y_train)\n",
+        "ypred = predict(X_test, k=3)"
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "Xv7oXnPSuQXS"
+      },
+      "source": [
+        "#### 4. คำนวณหา accuracy = อัตราส่วนของ label ที่ทำนายถูก\n",
+        "\n",
+        "$ accuracy = \\frac{\\mbox{number of correct labels}}{\\mbox{total number of predictions}} $"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": null,
+      "metadata": {
+        "id": "KU2AAKpAuQXS",
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "outputId": "76cdee8f-a425-4741-8ae3-b2e97abde528"
+      },
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "Got 27 / 297 correct => accuracy: 0.090909\n"
+          ]
+        }
+      ],
+      "source": [
+        "# TODO: คำนวณค่าเหล่านี้\n",
+        "num_correct = sum(ypred == y_test)\n",
+        "num_test = len(y_test)\n",
+        "accuracy = num_correct/num_test\n",
+        "print('Got %d / %d correct => accuracy: %f' % (num_correct, num_test, accuracy))"
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "nTD7SameuQXT"
+      },
+      "source": [
+        "#### (เสริม) ทดสอบความถูกต้องของ compute_distances\n",
+        "\n",
+        "เราสามารถนำ distance matrix ที่ได้จากมาวาดด้วย `plt.imshow()` ซึ่ง\n",
+        "- แต่ละ row คือ test example และ แต่ละ column คือ train example\n",
+        "- สีขาว <-> ดำ บ่งบอกถึงระยะห่างที่มาก <-> น้อย ระหว่าง train/test example คู่นั้น"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": null,
+      "metadata": {
+        "scrolled": true,
+        "id": "6NUbcHIRuQXT",
+        "colab": {
+          "base_uri": "https://localhost:8080/",
+          "height": 142
+        },
+        "outputId": "752d1960-7859-4243-b8cd-703f3bc08085"
+      },
+      "outputs": [
+        {
+          "output_type": "display_data",
+          "data": {
+            "text/plain": [
+              "<Figure size 500x400 with 1 Axes>"
+            ],
+            "image/png": "iVBORw0KGgoAAAANSUhEUgAAAbsAAAB9CAYAAAA7r80DAAAAOXRFWHRTb2Z0d2FyZQBNYXRwbG90bGliIHZlcnNpb24zLjcuMSwgaHR0cHM6Ly9tYXRwbG90bGliLm9yZy/bCgiHAAAACXBIWXMAAA9hAAAPYQGoP6dpAAARRUlEQVR4nO3de0yTZxsG8KuIFFBbFKQVBWWb8cicA8Wqc39IZI7NOd3JMIbObNHVA2oYGqdmWRzMJZtu87AtmZrM00w8TOMhDBA1qzJRVHSii06YWvAwWjwB0vv7w/DOKp9HbOnj9Uua2Pd5CveV1F5p+5bqRERARESkMD9vD0BERPS4seyIiEh5LDsiIlIey46IiJTHsiMiIuWx7IiISHksOyIiUh7LjoiIlMeyIyIi5bHsiIhIeV4ru4ULF6JTp04IDAxEfHw8CgoKvDUKEREpzitlt2bNGkydOhVz5szB/v370atXLyQmJqKiosIb4xARkeJ03vhD0PHx8ejTpw++++47AIDL5UJkZCQmTpyI6dOne3ocIiJSnL+nf2FNTQ0KCwsxY8YM7Zifnx8SEhJgs9kavE11dTWqq6u16y6XC5cuXUJoaCh0Ot1jn5mIiJoeEUFVVRUiIiLg53f3Fyo9XnYXLlxAXV0dTCaT23GTyYRjx441eJvMzEx8+umnnhiPiIh8TFlZGTp06HDXPR4vu4cxY8YMTJ06VbvucDgQFRWFsrIyGAwGL05GRETe4nQ6ERkZiVatWt1zr8fLLiwsDM2aNUN5ebnb8fLycpjN5gZvo9frodfr7zhuMBhYdkRET7j7eTvL42djBgQEIDY2Fjk5Odoxl8uFnJwcWCwWT49DRERPAK+8jDl16lSkpqYiLi4Offv2xfz583HlyhWMGTPGG+MQEZHivFJ2b7/9Ns6fP4/Zs2fDbrfjueeew7Zt2+44aYWIiKgxeOVzdo/K6XTCaDTC4XDwPTsioifUg3QB/zYmEREpj2VHRETKY9kREZHyWHZERKQ8lh0RESmPZUdERMpj2RERkfJYdkREpDyWHRERKY9lR0REymPZERGR8lh2RESkPJYdEREpj2VHRETKY9kREZHyWHZERKQ8lh0RESmPZUdERMpj2RERkfJYdkREpDyWHRERKY9lR0REymPZERGR8lh2RESkPJYdEREpj2VHRETKY9kREZHyWHZERKQ8lh0RESmPZUdERMpj2RERkfJYdkREpDyWHRERKY9lR0REymPZERGR8lh2RESkPJYdEREpj2VHRETKY9kREZHyWHZERKQ8lh0RESnvgcouMzMTffr0QatWrRAeHo7hw4ejpKTEbc/169dhtVoRGhqKli1bYuTIkSgvL3fbU1paiqSkJAQHByM8PBzp6em4cePGo6chIiJqwAOVXX5+PqxWK/bs2YPs7GzU1tZiyJAhuHLlirZnypQp2LRpE9auXYv8/HycPXsWI0aM0Nbr6uqQlJSEmpoa/P7771i+fDmWLVuG2bNnN14qIiKiW+hERB72xufPn0d4eDjy8/MxaNAgOBwOtG3bFitXrsQbb7wBADh27Bi6desGm82Gfv36YevWrXjllVdw9uxZmEwmAMCSJUuQkZGB8+fPIyAg4I7fU11djerqau260+lEZGQkHA4HDAbDw45PREQ+zOl0wmg03lcXPNJ7dg6HAwDQpk0bAEBhYSFqa2uRkJCg7enatSuioqJgs9kAADabDTExMVrRAUBiYiKcTieOHDnS4O/JzMyE0WjULpGRkY8yNhERPWEeuuxcLhfS0tIwYMAA9OzZEwBgt9sREBCAkJAQt70mkwl2u13bc2vR1a/XrzVkxowZcDgc2qWsrOxhxyYioieQ/8Pe0Gq1ori4GLt3727MeRqk1+uh1+sf++8hIiI1PdQzuwkTJmDz5s3Iy8tDhw4dtONmsxk1NTWorKx0219eXg6z2aztuf3szPrr9XuIiIga0wOVnYhgwoQJWL9+PXJzcxEdHe22Hhsbi+bNmyMnJ0c7VlJSgtLSUlgsFgCAxWLB4cOHUVFRoe3Jzs6GwWBA9+7dHyULERFRgx7oZUyr1YqVK1di48aNaNWqlfYem9FoRFBQEIxGI8aOHYupU6eiTZs2MBgMmDhxIiwWC/r16wcAGDJkCLp3746UlBTMmzcPdrsdn3zyCaxWK1+qJCKix+KBPnqg0+kaPL506VKMHj0awM0PlU+bNg2rVq1CdXU1EhMTsWjRIreXKE+fPo3x48djx44daNGiBVJTU5GVlQV///vr3gc53ZSIiNT0IF3wSJ+z8xaWHREReexzdkRERL6AZUdERMpj2RERkfJYdkREpDyWHRERKY9lR0REymPZERGR8lh2RESkPJYdEREpj2VHRETKY9kREZHyWHZERKQ8lh0RESmPZUdERMpj2RERkfJYdkREpLz7+2rwJqb++2adTqeXJyEiIm+p74D7+Q5ynyy7ixcvAgAiIyO9PAkREXlbVVUVjEbjXff4ZNm1adMGAFBaWnrPgL7A6XQiMjISZWVl9/xq+aZOpSwA8zRlKmUBmOdhiAiqqqoQERFxz70+WXZ+fjffajQajUrcKeoZDAZl8qiUBWCepkylLADzPKj7fcLDE1SIiEh5LDsiIlKeT5adXq/HnDlzoNfrvT1Ko1Apj0pZAOZpylTKAjDP46aT+zlnk4iIyIf55DM7IiKiB8GyIyIi5bHsiIhIeSw7IiJSHsuOiIiU55Nlt3DhQnTq1AmBgYGIj49HQUGBt0e6Q2ZmJvr06YNWrVohPDwcw4cPR0lJidue69evw2q1IjQ0FC1btsTIkSNRXl7utqe0tBRJSUkIDg5GeHg40tPTcePGDU9GuUNWVhZ0Oh3S0tK0Y76W5cyZM3j33XcRGhqKoKAgxMTEYN++fdq6iGD27Nlo164dgoKCkJCQgBMnTrj9jEuXLiE5ORkGgwEhISEYO3YsLl++7OkoqKurw6xZsxAdHY2goCA8/fTT+Oyzz9z+OG5TzbNz5068+uqriIiIgE6nw4YNG9zWG2vuQ4cO4YUXXkBgYCAiIyMxb948j+epra1FRkYGYmJi0KJFC0REROC9997D2bNnfTLP7caNGwedTof58+e7HW8yecTHrF69WgICAuSnn36SI0eOyAcffCAhISFSXl7u7dHcJCYmytKlS6W4uFiKiork5ZdflqioKLl8+bK2Z9y4cRIZGSk5OTmyb98+6devn/Tv319bv3HjhvTs2VMSEhLkwIEDsmXLFgkLC5MZM2Z4I5KIiBQUFEinTp3k2WeflcmTJ2vHfSnLpUuXpGPHjjJ69GjZu3evnDx5UrZv3y5//fWXticrK0uMRqNs2LBBDh48KMOGDZPo6Gi5du2atuell16SXr16yZ49e2TXrl3yzDPPyKhRozyeZ+7cuRIaGiqbN2+WU6dOydq1a6Vly5ayYMGCJp9ny5YtMnPmTFm3bp0AkPXr17utN8bcDodDTCaTJCcnS3FxsaxatUqCgoLk+++/92ieyspKSUhIkDVr1sixY8fEZrNJ3759JTY21u1n+EqeW61bt0569eolERER8vXXXzfJPD5Xdn379hWr1apdr6urk4iICMnMzPTiVPdWUVEhACQ/P19Ebt7xmzdvLmvXrtX2/PnnnwJAbDabiNy8o/n5+Yndbtf2LF68WAwGg1RXV3s2gIhUVVVJ586dJTs7W1588UWt7HwtS0ZGhgwcOPD/rrtcLjGbzfLll19qxyorK0Wv18uqVatEROTo0aMCQP744w9tz9atW0Wn08mZM2ce3/ANSEpKkvfff9/t2IgRIyQ5OVlEfCfP7Q+mjTX3okWLpHXr1m73s4yMDOnSpYtH8zSkoKBAAMjp06dFxDfz/PPPP9K+fXspLi6Wjh07upVdU8rjUy9j1tTUoLCwEAkJCdoxPz8/JCQkwGazeXGye3M4HAD++8aGwsJC1NbWumXp2rUroqKitCw2mw0xMTEwmUzansTERDidThw5csSD099ktVqRlJTkNjPge1l+/fVXxMXF4c0330R4eDh69+6NH3/8UVs/deoU7Ha7Wx6j0Yj4+Hi3PCEhIYiLi9P2JCQkwM/PD3v37vVcGAD9+/dHTk4Ojh8/DgA4ePAgdu/ejaFDhwLwvTz1Gmtum82GQYMGISAgQNuTmJiIkpIS/Pvvvx5K0zCHwwGdToeQkBAAvpfH5XIhJSUF6enp6NGjxx3rTSmPT5XdhQsXUFdX5/aACQAmkwl2u91LU92by+VCWloaBgwYgJ49ewIA7HY7AgICtDt5vVuz2O32BrPWr3nS6tWrsX//fmRmZt6x5mtZTp48icWLF6Nz587Yvn07xo8fj0mTJmH58uVu89ztfma32xEeHu627u/vjzZt2ng8z/Tp0/HOO++ga9euaN68OXr37o20tDQkJydrs9bPf6ummqdeY83dlO57t7p+/ToyMjIwatQo7VsBfC3PF198AX9/f0yaNKnB9aaUxye/4sfXWK1WFBcXY/fu3d4e5aGUlZVh8uTJyM7ORmBgoLfHeWQulwtxcXH4/PPPAQC9e/dGcXExlixZgtTUVC9P9+B++eUXrFixAitXrkSPHj1QVFSEtLQ0RERE+GSeJ0FtbS3eeustiAgWL17s7XEeSmFhIRYsWID9+/dDp9N5e5x78qlndmFhYWjWrNkdZ/mVl5fDbDZ7aaq7mzBhAjZv3oy8vDx06NBBO242m1FTU4PKykq3/bdmMZvNDWatX/OUwsJCVFRU4Pnnn4e/vz/8/f2Rn5+Pb775Bv7+/jCZTD6TBQDatWuH7t27ux3r1q0bSktL3ea52/3MbDajoqLCbf3GjRu4dOmSx/Okp6drz+5iYmKQkpKCKVOmaM/CfS1Pvcaauynd94D/iu706dPIzs52+643X8qza9cuVFRUICoqSntcOH36NKZNm4ZOnTpp8zSVPD5VdgEBAYiNjUVOTo52zOVyIScnBxaLxYuT3UlEMGHCBKxfvx65ubmIjo52W4+NjUXz5s3dspSUlKC0tFTLYrFYcPjwYbc7S/1/jtsfrB+nwYMH4/DhwygqKtIucXFxSE5O1v7tK1kAYMCAAXd8DOT48ePo2LEjACA6Ohpms9ktj9PpxN69e93yVFZWorCwUNuTm5sLl8uF+Ph4D6T4z9WrV7UvNK7XrFkzuFwuAL6Xp15jzW2xWLBz507U1tZqe7Kzs9GlSxe0bt3aQ2luqi+6EydO4LfffkNoaKjbui/lSUlJwaFDh9weFyIiIpCeno7t27c3vTyNerqLB6xevVr0er0sW7ZMjh49Kh9++KGEhIS4neXXFIwfP16MRqPs2LFDzp07p12uXr2q7Rk3bpxERUVJbm6u7Nu3TywWi1gsFm29/nT9IUOGSFFRkWzbtk3atm3r1Y8e1Lv1bEwR38pSUFAg/v7+MnfuXDlx4oSsWLFCgoOD5eeff9b2ZGVlSUhIiGzcuFEOHTokr732WoOnvPfu3Vv27t0ru3fvls6dO3vlowepqanSvn177aMH69atk7CwMPn444+bfJ6qqio5cOCAHDhwQADIV199JQcOHNDOTmyMuSsrK8VkMklKSooUFxfL6tWrJTg4+LGcqn+3PDU1NTJs2DDp0KGDFBUVuT0u3Homoq/kacjtZ2M2pTw+V3YiIt9++61ERUVJQECA9O3bV/bs2ePtke4AoMHL0qVLtT3Xrl2Tjz76SFq3bi3BwcHy+uuvy7lz59x+zt9//y1Dhw6VoKAgCQsLk2nTpkltba2H09zp9rLztSybNm2Snj17il6vl65du8oPP/zgtu5yuWTWrFliMplEr9fL4MGDpaSkxG3PxYsXZdSoUdKyZUsxGAwyZswYqaqq8mQMERFxOp0yefJkiYqKksDAQHnqqadk5syZbg+gTTVPXl5eg/9PUlNTG3XugwcPysCBA0Wv10v79u0lKyvL43lOnTr1fx8X8vLyfC5PQxoqu6aSh99nR0REyvOp9+yIiIgeBsuOiIiUx7IjIiLlseyIiEh5LDsiIlIey46IiJTHsiMiIuWx7IiISHksOyIiUh7LjoiIlMeyIyIi5f0P3Aicqb2bEakAAAAASUVORK5CYII=\n"
+          },
+          "metadata": {}
+        }
+      ],
+      "source": [
+        "dists = compute_distances(X_test)\n",
+        "plt.imshow(dists, interpolation='none')\n",
+        "plt.show()"
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "g-huGaTUuQXT"
+      },
+      "source": [
+        "**Question #1:** สังเกตว่าในภาพของ distance matrix จะมี pattern บาง row จะมีสีดำเป็นพิเศษ จงตอบคำถาม\n",
+        "\n",
+        "- แถบ row ที่มีสีดำเกิดจากอะไรในข้อมูล จงอธิบายตามความเข้าใจ\n",
+        "- แถบ columns ที่มีสีดำเกิดจากอะไรในข้อมูล จงอธิบายตามความเข้าใจ"
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "AjwsCqF2uQXT"
+      },
+      "source": [
+        "**ตอบ**: row และ columns ที่มีสีดำเกิดจากระยะห่างที่น้อยของช่วงนั้นของคู่ train/test example\n",
+        "\n"
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "vGt6IgYauQXT"
+      },
+      "source": [
+        "**Question #2:** จงทดลองเปลี่ยนค่า k ตั้งแต่ 1..10 แล้วหาว่าค่า k ใดที่ทำให้ accuracy สูงที่สุด"
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "fi6bcBR_uQXT"
+      },
+      "source": [
+        "**ตอบ**: k3 และ k4 มีค่า accuracy มากสูงที่สุด โดยที่มีค่าเท่ากับ 0.959596"
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "6lhEn2QOuQXT"
+      },
+      "source": [
+        "### ทิ้งท้าย: อยากให้ test accuracy ของ kNN สูงขึ้น ต้องทำอย่างไร?\n",
+        "\n",
+        "- สังเกตุว่าเราสามารถปรับแต่งหรือจูน **hyperparameter** ของ kNN ได้ เช่น\n",
+        "    - เปลี่ยนวิธีคำนวณระยะห่าง (L1 vs L2)\n",
+        "    - เปลี่ยนค่า k ที่ใช้\n",
+        "    - เปลี่ยนการให้น้ำหนักเพื่อนบ้านเวลา vote\n",
+        "- ในคาบเรียนสัปดาห์หน้าเราจะพบว่า\n",
+        "    - หากเลือก hyperparameter ไม่ดี อาจก่อให้เกิดปัญหา overfitting/underfitting ซึ่งจะส่งผลให้ค่า test accuracy ต่ำลง\n",
+        "    - เราสามารถใช้เทคนิค Grid Search ร่วมกับ Cross Validation ในการ tune ค่า hyperparameter เหล่านี้โดยอัตโนมัติได้"
+      ]
+    }
+  ],
+  "metadata": {
+    "kernelspec": {
+      "display_name": "Python 3",
+      "language": "python",
+      "name": "python3"
+    },
+    "language_info": {
+      "codemirror_mode": {
+        "name": "ipython",
+        "version": 3
+      },
+      "file_extension": ".py",
+      "mimetype": "text/x-python",
+      "name": "python",
+      "nbconvert_exporter": "python",
+      "pygments_lexer": "ipython3",
+      "version": "3.7.9"
+    },
+    "colab": {
+      "provenance": [],
+      "include_colab_link": true
+    }
+  },
+  "nbformat": 4,
+  "nbformat_minor": 0
+}
